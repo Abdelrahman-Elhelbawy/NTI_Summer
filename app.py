@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
+import requests
 
-if "data" not in st.session_state:
-    st.session_state.data = pd.DataFrame(columns=["Name", "Age", 'Accepted' ,"Flavor"])
+API = "http://127.0.0.1:8000"
+
+session = requests.Session()
+session.trust_env = False          
 
 name   = st.text_input("Name")
 age    = st.slider("Age", 0, 100, 25)
@@ -10,7 +13,12 @@ agree  = st.checkbox("I accept the terms")
 flavor = st.selectbox("Pick one", ["Vanilla", "Mango", "Mint"])
 
 if st.button("Submit"):
-    new_row = pd.DataFrame([{"Name": name, "Age": age, "Accepted": agree, "Flavor": flavor}])
-    st.session_state.data = pd.concat([st.session_state.data, new_row], ignore_index=True)
-    st.success("Data submitted successfully!")
-st.write(st.session_state.data)
+    r = session.post(f"{API}/submit",
+                     json={"name": name, "age": age, "agree": agree, "flavor": flavor})
+    st.success(f"Saved! {r.json()['stored']} total")
+
+try:
+    rows = session.get(f"{API}/submissions").json()
+    st.dataframe(pd.DataFrame(rows))
+except requests.exceptions.ConnectionError:
+    st.warning("API isn't running — start it with uvicorn first.")
